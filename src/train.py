@@ -21,8 +21,11 @@ df = load_and_clean_data(data_path)
 X_train, X_test, y_train, y_test = split_data(df, test_size, random_state)
 
 # 3. Set up MLflow Tracking
-# This creates a folder to store our experiment data
-mlflow.set_experiment("Heart_Disease_Prediction")
+# Force MLflow to use a local, relative folder
+mlflow.set_tracking_uri("file:./mlruns")
+
+# Change the name to force a completely fresh database
+mlflow.set_experiment("Heart_Disease_Pipeline_Prod")
 
 # Start the "flight data recorder"
 with mlflow.start_run():
