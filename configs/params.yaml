@@ -1,0 +1,10 @@
+data:
+  raw_path: "data/raw/heart.csv"
+  
+train:
+  test_size: 0.2
+  random_state: 42
+  
+model:
+  n_estimators: 200
+  max_depth: 3

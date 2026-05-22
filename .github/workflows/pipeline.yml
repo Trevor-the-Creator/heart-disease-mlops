@@ -1,0 +1,58 @@
+name: MLOps Pipeline
+
+# Trigger on pushes or pull requests to the main branch
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch Data (Local DVC Workaround)
+        run: |
+          mkdir -p data/raw
+          wget -O data/raw/heart.csv https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data
+
+      - name: Run Pytest Suite
+        run: pytest tests/ -v
+
+  train:
+    needs: test  # This ensures training ONLY happens if tests pass
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch Data (Local DVC Workaround)
+        run: |
+          mkdir -p data/raw
+          wget -O data/raw/heart.csv https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data
+
+      - name: Train Model and Verify Threshold
+        run: python src/train.py
