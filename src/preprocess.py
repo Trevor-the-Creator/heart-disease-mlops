@@ -2,31 +2,28 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 def load_and_clean_data(file_path):
-    """Loads data, handles missing values, and binarizes the target."""
-    # 1. Define the physiological columns
-    columns = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 
-               'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal', 'target']
+    df = pd.read_csv(file_path)
+    # Handle structural missing data drops if any string-typed NaNs exist
+    df = df.dropna()
     
-    # Load the CSV and apply the headers
-    df = pd.read_csv(file_path, names=columns)
+    # Explicit categorical variable handling via pd.get_dummies
+    # This addresses Victor's explicit requirement for categorical encoding support
+    categorical_cols = ['cp', 'restecg', 'slope', 'thal']
+    # Intersect with existing columns to avoid key errors if columns are already numeric
+    cols_to_encode = [col for col in categorical_cols if col in df.columns]
     
-    # 2. Handle missing values
-    # The UCI dataset uses '?' for missing data. 'coerce' safely forces them to NaN.
-    df['ca'] = pd.to_numeric(df['ca'], errors='coerce')
-    df['thal'] = pd.to_numeric(df['thal'], errors='coerce')
-    
-    # Fill those new NaNs with the median value of their respective columns
-    df['ca'] = df['ca'].fillna(df['ca'].median())
-    df['thal'] = df['thal'].fillna(df['thal'].median())
-    
-    # 3. Binarize the target variable (0 = healthy, 1+ = heart disease present)
-    df['target'] = df['target'].apply(lambda x: 1 if x > 0 else 0)
-    
+    if cols_to_encode:
+        df = pd.get_dummies(df, columns=cols_to_encode, drop_first=True)
+        
     return df
 
-def split_data(df, test_size, random_state):
-    """Splits the dataframe into training and testing features/targets."""
-    X = df.drop('target', axis=1)
-    y = df['target']
-    
+def split_data(df, test_size=0.2, random_state=42):
+    if "target" in df.columns:
+        X = df.drop(columns=["target"])
+        y = df["target"]
+    else:
+        # Fallback if target column name differs slightly
+        X = df.iloc[:, :-1]
+        y = df.iloc[:, -1]
+        
     return train_test_split(X, y, test_size=test_size, random_state=random_state)

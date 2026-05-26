@@ -2,7 +2,7 @@ import mlflow
 from mlflow.tracking import MlflowClient
 
 # Set the experiment name we want to search
-experiment_name = "Heart_Disease_Prediction"
+experiment_name = "Heart_Disease_Pipeline_Prod"
 experiment = mlflow.get_experiment_by_name(experiment_name)
 
 if experiment is None:
