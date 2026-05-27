@@ -1,5 +1,21 @@
+# Local Environment & Tracking
 venv/
 mlruns/
+reports/
+
+# Datasets
+data/raw/
+data/processed/
+*.csv
+
+# Models
+models/
+*.pkl
+*.joblib
+*.h5
+
+# Cache & Coverage Outputs
 __pycache__/
 .pytest_cache/
-reports/
+.coverage
+htmlcov/
