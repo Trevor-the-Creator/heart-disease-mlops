@@ -130,6 +130,37 @@ def load_best_model():
     return model, best
 
 
+def ask_for_missing_features(provided: dict, missing: list) -> str:
+    """Use Nebius AI to ask a friendly clarifying question for missing features."""
+    schema_hints = {k: FEATURE_SCHEMA[k] for k in missing}
+    provided_summary = {k: v for k, v in provided.items() if v is not None}
+
+    prompt = f"""You are a friendly heart health assistant helping a patient complete a risk assessment.
+
+The patient has provided:
+{json.dumps(provided_summary, indent=2)}
+
+You still need these values to run the assessment:
+{json.dumps(schema_hints, indent=2)}
+
+Write a single short, warm conversational message (2-3 sentences) that:
+1. Acknowledges what they've shared so far.
+2. Asks for the missing information in plain English (not medical jargon).
+3. Gives a brief example of what each missing value means so they understand.
+
+Do not use bullet points or lists. Keep it natural and encouraging.
+
+Message:"""
+
+    response = client().chat.completions.create(
+        model=NEBIUS_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+        max_tokens=200,
+    )
+    return response.choices[0].message.content.strip()
+
+
 def generate_explanation(features: dict, prediction: int, probability: float) -> str:
     """Use Nebius AI to produce a plain-English explanation of the prediction."""
     risk = "HIGH" if prediction == 1 else "LOW"

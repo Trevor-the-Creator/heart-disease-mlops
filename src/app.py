@@ -11,6 +11,7 @@ from interface_utils import (
     align_columns,
     load_best_model,
     generate_explanation,
+    ask_for_missing_features,
     REQUIRED_FEATURES,
     FEATURE_SCHEMA,
 )
@@ -82,10 +83,15 @@ if st.button("Assess Risk", type="primary"):
     missing = [k for k in REQUIRED_FEATURES if raw.get(k) is None]
 
     if missing:
-        st.warning(
-            f"**Missing information for:** {', '.join(missing)}\n\n"
-            "Please include all required fields and try again."
-        )
+        with st.spinner("Generating follow-up question…"):
+            try:
+                clarification = ask_for_missing_features(raw, missing)
+            except Exception:
+                clarification = (
+                    f"Thanks for sharing that! I still need a few more details to run "
+                    f"the assessment: **{', '.join(missing)}**. Could you provide those?"
+                )
+        st.info(f"💬 {clarification}")
         with st.expander("What was extracted so far"):
             st.json({k: v for k, v in raw.items() if v is not None})
         st.stop()
