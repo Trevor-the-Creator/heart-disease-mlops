@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
-from src.preprocess import load_and_clean_data, split_data
+from sklearn.preprocessing import StandardScaler
+from src.preprocess import load_and_clean_data, split_data, scale_features, NUMERIC_COLS
 
 
 @pytest.fixture
@@ -59,3 +60,19 @@ def test_invalid_test_size_raises_value_error(sample_csv):
     df = load_and_clean_data(sample_csv)
     with pytest.raises(ValueError):
         split_data(df, test_size=1.5)
+
+
+def test_scale_features_fits_scaler_on_train_only(sample_csv):
+    df = load_and_clean_data(sample_csv)
+    X_train, X_test, y_train, y_test = split_data(df, test_size=0.4, random_state=42)
+    X_train_s, X_test_s, scaler = scale_features(X_train, X_test)
+
+    assert isinstance(scaler, StandardScaler)
+    assert hasattr(scaler, "mean_"), "Scaler was not fitted"
+    assert X_train_s.shape == X_train.shape, "Scaling must not change DataFrame shape"
+    assert X_test_s.shape == X_test.shape
+
+    # One-hot encoded columns must be untouched (still 0/1 integers)
+    ohe_cols = [c for c in X_train_s.columns if "_" in c]
+    for col in ohe_cols:
+        assert X_train_s[col].isin([0, 1, True, False]).all()
