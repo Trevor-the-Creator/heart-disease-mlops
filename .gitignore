@@ -1,5 +1,6 @@
 # Local Environment & Tracking
 venv/
+.env
 mlruns/
 reports/
 

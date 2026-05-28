@@ -1,63 +1,88 @@
 import sys
 import yaml
 from preprocess import load_and_clean_data, split_data
-from evaluate import evaluate_model  # Importing our dedicated module
-from sklearn.ensemble import RandomForestClassifier
+from evaluate import evaluate_model
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 import mlflow
 import mlflow.sklearn
 
-# 1. Load the configuration file
-with open("configs/params.yaml", "r") as file:
-    config = yaml.safe_load(file)
+with open("configs/params.yaml", "r") as f:
+    config = yaml.safe_load(f)
 
 data_path = config["data"]["raw_path"]
 test_size = config["train"]["test_size"]
 random_state = config["train"]["random_state"]
-n_estimators = config["model"]["n_estimators"]
-max_depth = config["model"]["max_depth"]
 
-# 2. Process and split the data (Now includes One-Hot Categorical Encoding)
 df = load_and_clean_data(data_path)
 X_train, X_test, y_train, y_test = split_data(df, test_size, random_state)
 
-# 3. Set up MLflow Tracking
 mlflow.set_tracking_uri("file:./mlruns")
 mlflow.set_experiment("Heart_Disease_Pipeline_Prod")
 
-with mlflow.start_run():
-    # 4. Train the Model
-    model = RandomForestClassifier(
-        n_estimators=n_estimators, 
-        max_depth=max_depth, 
-        random_state=random_state
-    )
-    model.fit(X_train, y_train)
+best_accuracy = 0.0
+best_run_id = None
 
-    # 5. Make Predictions
-    predictions = model.predict(X_test)
-    
-    # Use decoupled evaluation function
-    metrics = evaluate_model(y_test, predictions)
-    accuracy = metrics["accuracy"]
-    
-    print(f"Model trained! Accuracy: {accuracy:.3f}, Precision: {metrics['precision']:.3f}, Recall: {metrics['recall']:.3f}")
+for exp in config.get("experiments", []):
+    with mlflow.start_run(run_name=exp["name"]):
+        model_type = exp["model_type"]
 
-    # 6. Log everything to MLflow
-    mlflow.log_param("n_estimators", n_estimators)
-    mlflow.log_param("max_depth", max_depth)
-    
-    mlflow.log_metric("accuracy", metrics["accuracy"])
-    mlflow.log_metric("precision", metrics["precision"])
-    mlflow.log_metric("recall", metrics["recall"])
-    
-    mlflow.set_tag("data_version", "encoded_cleveland_v2")
-    mlflow.sklearn.log_model(model, "random_forest_model")
-    
-    print("Run logged to MLflow successfully!")
+        if model_type == "random_forest":
+            model = RandomForestClassifier(
+                n_estimators=exp["n_estimators"],
+                max_depth=exp["max_depth"],
+                random_state=random_state,
+            )
+            mlflow.log_param("n_estimators", exp["n_estimators"])
+            mlflow.log_param("max_depth", exp["max_depth"])
 
-# 7. CI/CD Performance Threshold Check
-if accuracy < 0.70:
-    print(f"Pipeline Failed: Model accuracy ({accuracy:.3f}) is below the 0.70 threshold.")
+        elif model_type == "gradient_boosting":
+            model = GradientBoostingClassifier(
+                n_estimators=exp["n_estimators"],
+                max_depth=exp["max_depth"],
+                learning_rate=exp["learning_rate"],
+                random_state=random_state,
+            )
+            mlflow.log_param("n_estimators", exp["n_estimators"])
+            mlflow.log_param("max_depth", exp["max_depth"])
+            mlflow.log_param("learning_rate", exp["learning_rate"])
+
+        elif model_type == "logistic_regression":
+            model = LogisticRegression(
+                C=exp["C"],
+                max_iter=exp["max_iter"],
+                random_state=random_state,
+            )
+            mlflow.log_param("C", exp["C"])
+            mlflow.log_param("max_iter", exp["max_iter"])
+
+        mlflow.log_param("model_type", model_type)
+        mlflow.log_param("data_version", "encoded_cleveland_v2")
+
+        model.fit(X_train, y_train)
+        predictions = model.predict(X_test)
+        metrics = evaluate_model(y_test, predictions)
+
+        for name, value in metrics.items():
+            mlflow.log_metric(name, value)
+
+        mlflow.set_tag("experiment_name", exp["name"])
+        mlflow.sklearn.log_model(model, "model")
+
+        print(
+            f"[{exp['name']}] accuracy={metrics['accuracy']:.3f}  "
+            f"f1={metrics['f1']:.3f}  precision={metrics['precision']:.3f}  "
+            f"recall={metrics['recall']:.3f}"
+        )
+
+        if metrics["accuracy"] > best_accuracy:
+            best_accuracy = metrics["accuracy"]
+            best_run_id = mlflow.active_run().info.run_id
+
+print(f"\nBest run: {best_run_id}  accuracy={best_accuracy:.3f}")
+
+if best_accuracy < 0.70:
+    print(f"Pipeline Failed: best accuracy ({best_accuracy:.3f}) below 0.70 threshold.")
     sys.exit(1)
 else:
-    print("Pipeline Passed: Model meets production thresholds.")
+    print("Pipeline Passed: best model meets production thresholds.")

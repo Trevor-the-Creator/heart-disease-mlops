@@ -1,10 +1,34 @@
 data:
   raw_path: "data/raw/heart.csv"
-  
+
 train:
   test_size: 0.2
   random_state: 42
-  
+
+experiments:
+  - name: "rf_shallow"
+    model_type: "random_forest"
+    n_estimators: 50
+    max_depth: 2
+  - name: "rf_medium"
+    model_type: "random_forest"
+    n_estimators: 100
+    max_depth: 5
+  - name: "rf_deep"
+    model_type: "random_forest"
+    n_estimators: 200
+    max_depth: 10
+  - name: "gradient_boosting"
+    model_type: "gradient_boosting"
+    n_estimators: 100
+    max_depth: 3
+    learning_rate: 0.1
+  - name: "logistic_regression"
+    model_type: "logistic_regression"
+    C: 1.0
+    max_iter: 1000
+
+# Legacy single-model config kept for backward compatibility
 model:
   n_estimators: 50
   max_depth: 2
