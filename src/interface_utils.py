@@ -4,9 +4,11 @@ and response generation.  No Streamlit imports — safe to import in tests.
 """
 import os
 import json
+import pickle
 import pandas as pd
 import mlflow
 import mlflow.sklearn
+import mlflow.artifacts
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -113,8 +115,7 @@ def align_columns(user_df: pd.DataFrame, model_columns: list) -> pd.DataFrame:
 
 
 def load_best_model():
-    """Load the highest-accuracy model artifact from MLflow."""
-    import os
+    """Load the highest-accuracy model and its scaler artifact from MLflow."""
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     mlflow.set_tracking_uri(f"file:{os.path.join(project_root, 'mlruns')}")
 
@@ -126,8 +127,23 @@ def load_best_model():
         raise RuntimeError("No MLflow runs found. Run src/train.py first.")
 
     best = runs.iloc[0]
-    model = mlflow.sklearn.load_model(f"runs:/{best['run_id']}/model")
-    return model, best
+    run_id = best["run_id"]
+    model = mlflow.sklearn.load_model(f"runs:/{run_id}/model")
+
+    scaler_local = mlflow.artifacts.download_artifacts(f"runs:/{run_id}/scaler.pkl")
+    with open(scaler_local, "rb") as f:
+        scaler = pickle.load(f)
+
+    return model, scaler, best
+
+
+def scale_for_inference(X: pd.DataFrame, scaler) -> pd.DataFrame:
+    """Apply the fitted scaler to the same numeric columns used during training."""
+    from preprocess import NUMERIC_COLS
+    X = X.copy()
+    cols = [c for c in NUMERIC_COLS if c in X.columns]
+    X[cols] = scaler.transform(X[cols])
+    return X
 
 
 def ask_for_missing_features(provided: dict, missing: list) -> str:

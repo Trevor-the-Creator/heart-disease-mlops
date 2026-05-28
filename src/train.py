@@ -1,6 +1,9 @@
 import sys
+import pickle
+import tempfile
+import os
 import yaml
-from preprocess import load_and_clean_data, split_data
+from preprocess import load_and_clean_data, split_data, scale_features
 from evaluate import evaluate_model
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -16,6 +19,7 @@ random_state = config["train"]["random_state"]
 
 df = load_and_clean_data(data_path)
 X_train, X_test, y_train, y_test = split_data(df, test_size, random_state)
+X_train, X_test, scaler = scale_features(X_train, X_test)
 
 mlflow.set_tracking_uri("file:./mlruns")
 mlflow.set_experiment("Heart_Disease_Pipeline_Prod")
@@ -68,6 +72,12 @@ for exp in config.get("experiments", []):
 
         mlflow.set_tag("experiment_name", exp["name"])
         mlflow.sklearn.log_model(model, "model")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scaler_path = os.path.join(tmpdir, "scaler.pkl")
+            with open(scaler_path, "wb") as f:
+                pickle.dump(scaler, f)
+            mlflow.log_artifact(scaler_path)
 
         print(
             f"[{exp['name']}] accuracy={metrics['accuracy']:.3f}  "

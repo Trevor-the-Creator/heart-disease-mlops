@@ -9,6 +9,7 @@ from interface_utils import (
     parse_features,
     prepare_input,
     align_columns,
+    scale_for_inference,
     load_best_model,
     generate_explanation,
     ask_for_missing_features,
@@ -27,7 +28,7 @@ def get_model():
     return load_best_model()
 
 try:
-    model, best_run = get_model()
+    model, scaler, best_run = get_model()
     model_columns = (
         list(model.feature_names_in_) if hasattr(model, "feature_names_in_") else None
     )
@@ -102,6 +103,7 @@ if st.button("Assess Risk", type="primary"):
             user_df = prepare_input({k: raw[k] for k in REQUIRED_FEATURES})
             if model_columns:
                 user_df = align_columns(user_df, model_columns)
+            user_df = scale_for_inference(user_df, scaler)
 
             prediction = int(model.predict(user_df)[0])
             probability = float(model.predict_proba(user_df)[0][1])
