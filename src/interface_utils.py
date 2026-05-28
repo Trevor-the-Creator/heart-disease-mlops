@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NEBIUS_MODEL = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+NEBIUS_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 
 # Client is built lazily so the module can be imported without a key (e.g. in tests).
 _client: "OpenAI | None" = None
